@@ -1,0 +1,45 @@
+---
+- name: Play for salt master
+  hosts: saltmaster
+  become: true
+  vars:
+    salt_gpgkey_url: "https://repo.saltproject.io/py3/ubuntu/20.04/amd64/3004/salt-archive-keyring.gpg"
+    salt_apt_repo: "deb [signed-by=/usr/share/keyrings/salt-archive-keyring.gpg arch=amd64] https://repo.saltproject.io/py3/ubuntu/20.04/amd64/3004 focal main"
+  tasks:
+    - name: Install salt apt gpgkey
+      ansible.builtin.apt_key:
+        url: "{{ salt_gpgkey_url }}"
+        keyring: "/usr/share/keyrings/salt-archive-keyring.gpg"
+
+    - name: Install salt repo
+      ansible.builtin.apt_repository:
+        repo: "{{ salt_apt_repo }}"
+        state: present
+
+    - name: Install salt-master
+      ansible.builtin.package:
+        name: salt-master
+        state: present
+
+    - name: Configure salt-master
+      ansible.builtin.template:
+        src: etc/salt/master.j2
+        dest: /etc/salt/master
+        owner: root
+        group: root
+        mode: 0644
+        backup: true
+      notify:
+        - Restart salt-master
+
+    - name: Ensure salt-master is running and onboot
+      ansible.builtin.service:
+        name: salt-master
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart salt-master
+      ansible.builtin.service:
+        name: salt-master
+        state: restarted

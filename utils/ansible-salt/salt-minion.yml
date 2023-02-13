@@ -1,0 +1,70 @@
+---
+- name: Play for salt minion
+  hosts: saltminion
+  become: true
+  vars:
+    salt_master: salt01.itlab.local
+    salt_gpgkey_url: "https://repo.saltproject.io/py3/ubuntu/20.04/amd64/3004/salt-archive-keyring.gpg"
+    salt_apt_repo: "deb [signed-by=/usr/share/keyrings/salt-archive-keyring.gpg arch=amd64] https://repo.saltproject.io/py3/ubuntu/20.04/amd64/3004 focal main"
+  tasks:
+    # - name: Set hostname
+    #   ansible.builtin.hostname:
+    #     name: "{{ inventory_hostname }}"
+
+    - name: Install salt apt gpgkey
+      ansible.builtin.apt_key:
+        url: "{{ salt_gpgkey_url }}"
+        keyring: "/usr/share/keyrings/salt-archive-keyring.gpg"
+
+    - name: Install salt repo
+      ansible.builtin.apt_repository:
+        repo: "{{ salt_apt_repo }}"
+        state: present
+
+    - name: Install salt-minion
+      ansible.builtin.package:
+        name: salt-minion
+        state: present
+
+    - name: Ensure salt-master in /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^192\.168\.99\.254$'
+        line: "192.168.99.254	saltmaster"
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Configure salt-minion
+      ansible.builtin.template:
+        src: etc/salt/minion.j2
+        dest: /etc/salt/minion
+        owner: root
+        group: root
+        backup: true
+        mode: 0644
+      notify:
+        - restart salt-minion
+
+    - name: Configure minion_id
+      ansible.builtin.template:
+        src: etc/salt/minion_id.j2
+        dest: /etc/salt/minion_id
+        owner: root
+        group: root
+        backup: true
+        mode: 0644
+      notify:
+        - Restart salt-minion
+
+    - name: Ensure salt-minion is running and onboot
+      ansible.builtin.service:
+        name: salt-minion
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart salt-minion
+      ansible.builtin.service:
+        name: salt-minion
+        state: restarted

@@ -1,0 +1,84 @@
+# This file managed by Ansible, do not edit by hand!!
+interface: {{ ansible_default_ipv4.address  }}
+
+gather_job_timeout: 30
+timeout: 10
+con_cache: True
+max_open_files: 65535
+worker_threads: 50
+zmq_backlog: 10000
+salt_event_pub_hwm: 128000
+event_publisher_pub_hwm: 64000
+log_level_logfile: debug
+
+top_file_merging_strategy: same
+
+# File configs
+fileserver_backend:
+  - roots
+  - gitfs
+
+file_roots:
+  local:
+    - /srv/salt
+    - /srv/formulas
+
+# Pillar configs
+pillar_roots:
+  local:
+    - /srv/pillar
+
+gitfs_provider: pygit2
+gitfs_base: prod
+gitfs_saltenv_whitelist:
+  - dev
+  - stage
+  - prod
+
+gitfs_ref_types:
+  - branch
+
+gitfs_remotes:
+  - git@github.com:infra/saltstack-master.git:
+    - root: salt
+    - pubkey: /root/.ssh/id_rsa.pub
+    - privkey: /root/.ssh/id_rsa
+    - update_interval: 120
+    - ref_types:
+      - branch
+  - https://github.com/saltstack-formulas/timezone-formula
+  - https://github.com/saltstack-formulas/systemd-formula
+  - https://github.com/saltstack-formulas/chrony-formula
+  - https://github.com/saltstack-formulas/apt-formula
+  - https://github.com/saltstack-formulas/docker-formula
+
+git_pillar_update_interval: 120
+pillarenv_from_saltenv: True
+ext_pillar:
+  - git:
+    - dev git@github.com:infra/saltstack-master.git:
+      - env: dev
+      - pubkey: /root/.ssh/id_rsa.pub
+      - privkey: /root/.ssh/id_rsa
+      - root: pillar
+    - stage git@github.com:infra/saltstack-master.git:
+      - env: stage
+      - pubkey: /root/.ssh/id_rsa.pub
+      - privkey: /root/.ssh/id_rsa
+      - root: pillar
+    - prod git@github.com:infra/saltstack-master.git:
+      - env: base
+      - pubkey: /root/.ssh/id_rsa.pub
+      - privkey: /root/.ssh/id_rsa
+      - root: pillar
+
+external_auth:
+  pam:
+    Salt Admin%:
+      - '*':
+        - 'state.*'
+        - 'pillar.*'
+        - 'grains.*'
+        - '@wheel'   # to allow access to all wheel modules
+        - '@runner'  # to allow access to all runner modules
+        - '@jobs'    # to allow access to the jobs runner and/or wheel module 
